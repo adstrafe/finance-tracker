@@ -1,0 +1,25 @@
+{
+	"compilerOptions": {
+		"baseUrl": "./src",
+		"forceConsistentCasingInFileNames": true,
+		"isolatedModules": true,
+		"lib": [
+			"ESNext"
+		],
+		"module": "ESNext",
+		"moduleResolution": "bundler",
+		"paths": {
+			"~/*": [
+				"*"
+			]
+		},
+		"skipLibCheck": true,
+		"stripInternal": true,
+		"strict": true,
+		"target": "ESNext",
+		"types": []
+	},
+	"include": [
+		"./src/**/*"
+	]
+}

@@ -1,0 +1,16 @@
+{
+	"name": "finance-shared",
+	"version": "1.0.0",
+	"license": "ISC",
+	"exports": {
+		".": {
+			"import": "./dist/index.mjs",
+			"types": "./dist/index.d.ts"
+		}
+	},
+	"devDependencies": {
+		"@types/node": "24.3.1",
+		"build-logic": "workspace:*",
+		"typescript": "5.8.2"
+	}
+}
