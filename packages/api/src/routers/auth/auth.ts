@@ -1,5 +1,5 @@
 import { TRPCError } from '@trpc/server';
-import { authOutputModel, loginInputModel, registerInputModel, userOutputModel } from '~/models/credentials';
+import { authOutputModel, loginInputModel, registerInputModel, userOutputModel } from '~/models/Credentials';
 import { NewUser, User } from '~/mongo/schemas/User';
 import { createTRPCRouter, publicProcedure } from '~/trpc/trpc';
 import { sign } from '~/utils/jwt';

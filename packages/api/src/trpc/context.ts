@@ -3,7 +3,7 @@ import type { CreateHTTPContextOptions } from '@trpc/server/adapters/standalone'
 
 import jwt from 'jsonwebtoken';
 
-// has to be exported for
+// has to be exported
 export interface UserContext {
 	readonly _id: string;
 	readonly email: string;

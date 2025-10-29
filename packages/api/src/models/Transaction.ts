@@ -8,15 +8,19 @@ export const transactionInputModel = z.object({
 	description: z.string().optional()
 });
 
-export type TransactionInput = z.infer<typeof transactionInputModel>;
 
 export const transactionOutputModel = z.object({
 	acknowledged: z.boolean(),
 	insertedId: z.string()
 });
 
-export type TransactionOutput = z.infer<typeof transactionOutputModel>;
 
 export const transactionUpdateModel = transactionInputModel
-	.partial()
-	.extend({ _id: z.string() });
+.partial()
+.extend({ _id: z.string() });
+
+export const transactionDeleteModel = transactionUpdateModel.pick({ _id: true });
+
+export type TransactionInput = z.infer<typeof transactionInputModel>;
+export type TransactionOutput = z.infer<typeof transactionOutputModel>;
+export type TransactionDelete = z.infer<typeof transactionDeleteModel>;
