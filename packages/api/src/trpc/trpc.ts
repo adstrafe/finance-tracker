@@ -1,7 +1,7 @@
 import { initTRPC, TRPCError } from '@trpc/server';
 import { ZodError, treeifyError } from 'zod';
 import type { Context } from './context';
-import { loggingMiddleware } from './middleware/logging';
+import { loggingMiddleware } from '../middleware/loggingMiddleware';
 
 export const t = initTRPC.context<Context>().create({
 	errorFormatter(opts) {

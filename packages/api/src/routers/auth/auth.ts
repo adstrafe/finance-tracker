@@ -1,22 +1,20 @@
 import { AuthOutputModel, LoginInputModel, RegisterInputModel, UserOutputModel } from '~/models/Auth';
 import { NewUser, User } from '~/mongo/schemas/User';
 import { createTRPCRouter, publicProcedure } from '~/trpc/trpc';
-import { sign } from '~/utils/jwt';
+import { jwtMiddleware } from '~/middleware/jwtMiddleware';
 import { compare, hash } from 'bcrypt';
-import { getEnvVar } from '~/utils/getEnvVar';
-import { mongoContextProvider } from '~/mongo/providers/mongoContextProvider';
+import { mongoMiddleware } from '~/middleware/mongoMiddleware';
 import { Collections } from '~/mongo/Collections';
 import { ErrorFactory, AppError, ErrorCode } from '~/errors';
 import { Logger } from '~/logger';
-
-const secret = getEnvVar('JWT_SECRET');
 
 export const authRouter = createTRPCRouter({
 	register: publicProcedure
 		.input(RegisterInputModel)
 		.output(AuthOutputModel)
-		.use(mongoContextProvider(Collections.users))
-		.mutation(async ({ ctx: { collection }, input }) => {
+		.use(mongoMiddleware(Collections.users))
+		.use(jwtMiddleware)
+		.mutation(async ({ ctx: { collection, jwt }, input }) => {
 			const { email, password } = input;
 
 			Logger.dbOperation('findOne', 'users', {
@@ -44,23 +42,24 @@ export const authRouter = createTRPCRouter({
 				operation: 'create-user'
 			});
 
-			const result = await collection.insertOne(newUser as User);
-			const token = await sign({ userId: result.insertedId.toString(), email }, secret, { expiresIn: '1d' }) as string;
+		const result = await collection.insertOne(newUser as User);
+		const token = await jwt.sign({ userId: result.insertedId.toString(), email }, { expiresIn: '1d' });
 
-			return {
-				token,
-				user: {
-					id: result.insertedId.toString(),
-					email
-				}
+		return {
+			token,
+			user: {
+				id: result.insertedId.toString(),
+				email
 			}
+		}
 		}),
 
 	login: publicProcedure
 		.input(LoginInputModel)
 		.output(AuthOutputModel)
-		.use(mongoContextProvider(Collections.users))
-		.mutation(async ({ ctx: { collection }, input }) => {
+		.use(mongoMiddleware(Collections.users))
+		.use(jwtMiddleware)
+		.mutation(async ({ ctx: { collection, jwt }, input }) => {
 			const { email, password } = input;
 
 			Logger.dbOperation('findOne', 'users', {
@@ -84,7 +83,7 @@ export const authRouter = createTRPCRouter({
 				});
 			}
 
-			const token = await sign({ userId: existingUser._id.toString(), email }, secret, { expiresIn: '1d' }) as string;
+			const token = await jwt.sign({ userId: existingUser._id.toString(), email }, { expiresIn: '1d' });
 			return {
 				token,
 				user: {
@@ -96,25 +95,14 @@ export const authRouter = createTRPCRouter({
 
 	me: publicProcedure
 		.output(UserOutputModel)
-		.use(mongoContextProvider(Collections.users))
-		.query(async ({ ctx: { collection, user } }) => {
+		.query(async ({ ctx: { user } }) => {
 			if (!user) {
 				return null;
 			}
 
-			Logger.dbOperation('findOne', 'users', {
-				email: user.email,
-				operation: 'get-current-user'
-			});
-
-			const existingUser = await collection.findOne({ email: user.email });
-			if (!existingUser) {
-				return null;
-			}
-
 			return {
-				id: existingUser._id.toString(),
-				email: existingUser.email
+				id: user._id,
+				email: user.email
 			}
 		})
 });

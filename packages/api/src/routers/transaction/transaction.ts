@@ -1,7 +1,7 @@
 import { createTRPCRouter, protectedProcedure } from '~/trpc/trpc';
 import { TransactionInputModel, TransactionOutputModel, TransactionUpdateModel } from '~/models/Transaction';
 import { ObjectId } from 'mongodb';
-import { mongoContextProvider } from '~/mongo/providers/mongoContextProvider';
+import { mongoMiddleware } from '~/middleware/mongoMiddleware';
 import { Collections } from '~/mongo/Collections';
 import { ErrorFactory } from '~/errors';
 import { Logger } from '~/logger';
@@ -13,7 +13,7 @@ export const transactionRouter = createTRPCRouter({
 	addTransaction: protectedProcedure
 		.input(TransactionInputModel)
 		.output(TransactionOutputModel)
-		.use(mongoContextProvider(Collections.transactions))
+		.use(mongoMiddleware(Collections.transactions))
 		.mutation(async ({ ctx: { collection, user }, input: { date, ...rest } }) => {
 			if (!user) {
 				throw ErrorFactory.authentication('User not found', { procedure: 'addTransaction' });
@@ -40,7 +40,7 @@ export const transactionRouter = createTRPCRouter({
 	updateTransaction: protectedProcedure
 		.input(TransactionUpdateModel)
 		.output(TransactionOutputModel)
-		.use(mongoContextProvider(Collections.transactions))
+		.use(mongoMiddleware(Collections.transactions))
 		.mutation(async ({ ctx: { collection, user }, input: { _id, ...updates } }) => {
 			if (!user) {
 				throw ErrorFactory.authentication('User not found', { procedure: 'updateTransaction' });
@@ -81,7 +81,7 @@ export const transactionRouter = createTRPCRouter({
 	deleteTransaction: protectedProcedure
 		.input(FilterModel)
 		.output(TransactionOutputModel)
-		.use(mongoContextProvider(Collections.transactions))
+		.use(mongoMiddleware(Collections.transactions))
 		.mutation(async ({ ctx: { collection, user }, input: { _id } }) => {
 			if (!user) {
 				throw ErrorFactory.authentication('User not found', { procedure: 'deleteTransaction' });
@@ -111,7 +111,7 @@ export const transactionRouter = createTRPCRouter({
 		}),
 	getTransaction: protectedProcedure
 		.input(FilterModel)
-		.use(mongoContextProvider(Collections.transactions))
+		.use(mongoMiddleware(Collections.transactions))
 		.query(async ({ ctx: { collection, user }, input: { _id } }) => {
 			if (!user) {
 				throw ErrorFactory.authentication('User not found', { procedure: 'getTransaction' });
@@ -140,7 +140,7 @@ export const transactionRouter = createTRPCRouter({
 		}),
 	listTransactions: protectedProcedure
 		.input(FilterModel)
-		.use(mongoContextProvider(Collections.transactions))
+		.use(mongoMiddleware(Collections.transactions))
 		.query(async ({
 			ctx: { collection, user },
 			input: {

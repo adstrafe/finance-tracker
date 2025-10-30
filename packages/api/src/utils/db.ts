@@ -1,21 +1,21 @@
 import { MongoClient, Document, ServerApiVersion } from 'mongodb';
-import { getEnvVar } from './getEnvVar';
+import type { AppConfig } from '~/config/config';
 
 let client: MongoClient | null = null;
 
 /**
- * Establishes a connection to MongoDB using the MONGO_URI environment variable.
+ * Establishes a connection to MongoDB using the provided configuration.
  * Returns the existing client if already connected.
+ * @param {AppConfig} config - Application configuration containing MongoDB URI
  * @returns {Promise<MongoClient>} The connected MongoDB client instance
  * @throws {Error} If the connection fails
  */
-export const connectDb = async () => {
+export const connectDb = async (config: AppConfig) => {
 	if (client) {
 		return client;
 	}
 
-	const uri = getEnvVar('MONGO_URI');
-	client = new MongoClient(uri, {
+	client = new MongoClient(config.mongo.uri, {
 		serverApi: {
 			version: ServerApiVersion.v1,
 			strict: true,
