@@ -1,8 +1,9 @@
 import { TRPCError } from '@trpc/server';
 import { Logger } from '~/logger';
 import { AppError } from '~/errors';
+import { t } from '~/trpc/trpc';
 
-export const loggingMiddleware = async ({ next, path, type, ctx, input }: any) => {
+export const loggingMiddleware = t.middleware(async ({ next, path, ctx, input }) => {
 	const userId = ctx.user?._id;
 	const apiContext = Logger.apiCallStart(path, userId, input);
 
@@ -31,4 +32,4 @@ export const loggingMiddleware = async ({ next, path, type, ctx, input }: any) =
 		// Re-throw the original error to maintain tRPC error handling
 		throw error;
 	}
-};
+});
