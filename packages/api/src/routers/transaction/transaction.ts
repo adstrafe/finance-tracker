@@ -29,7 +29,7 @@ export const transactionRouter = createTRPCRouter({
 				...rest,
 				createdAt: date,
 				updatedAt: date,
-				userId: new Object(user._id)
+				userId: new ObjectId(user._id)
 			} as Transaction);
 
 			return {
