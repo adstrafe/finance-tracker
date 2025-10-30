@@ -152,8 +152,17 @@ export class ConsoleStyles {
 	// Format log entry
 	static logEntry(level: string, message: string, emoji: string, context?: any): string {
 		const timestamp = ConsoleStyles.timestamp(new Date());
-		const levelColor = level.toLowerCase() as keyof typeof colors;
-		const levelText = ConsoleStyles.colorize(level.toUpperCase(), levelColor);
+
+		// Map log levels to colors
+		const levelColorMap: Record<string, keyof typeof colors> = {
+			'ERROR': 'red',
+			'WARN': 'yellow',
+			'INFO': 'cyan',
+			'DEBUG': 'gray'
+		};
+
+		const levelColor = levelColorMap[level] || 'white';
+		const levelText = ConsoleStyles.colorize(level, levelColor);
 		const msg = ConsoleStyles.bold(message);
 
 		let output = `${timestamp} ${emoji} ${levelText} ${msg}`;

@@ -25,10 +25,8 @@ export interface APICallContext {
 
 export class Logger {
 	private static logLevel: LogLevel;
-	private static isDevelopment: boolean;
 
 	static {
-		Logger.isDevelopment = process.env.NODE_ENV === 'development';
 		Logger.logLevel = Logger.getLogLevelFromEnv();
 	}
 
@@ -39,7 +37,11 @@ export class Logger {
 			case 'WARN': return LogLevel.WARN;
 			case 'INFO': return LogLevel.INFO;
 			case 'DEBUG': return LogLevel.DEBUG;
-			default: return Logger.isDevelopment ? LogLevel.DEBUG : LogLevel.INFO;
+			default: {
+				// Default to INFO in production, DEBUG in development
+				const isDev = process.env.NODE_ENV === 'development';
+				return isDev ? LogLevel.DEBUG : LogLevel.INFO;
+			}
 		}
 	}
 
@@ -48,36 +50,14 @@ export class Logger {
 	}
 
 	private static formatMessage(level: LogLevel, message: string, context?: LogContext, error?: Error): string {
-		// Use styled console output for development, plain for production
-		if (Logger.isDevelopment) {
-			const levelName = LogLevel[level];
-			const emoji = this.getEmojiForLevel(level);
-
-			if (error) {
-				return ConsoleStyles.errorDetails(error, context);
-			}
-
-			return ConsoleStyles.logEntry(levelName, message, emoji, context);
-		}
-
-		// Production: plain JSON format
-		const timestamp = new Date().toISOString();
 		const levelName = LogLevel[level];
-
-		let formattedMessage = `[${timestamp}] ${levelName}: ${message}`;
-
-		if (context && Object.keys(context).length > 0) {
-			formattedMessage += ` | Context: ${JSON.stringify(context)}`;
-		}
+		const emoji = this.getEmojiForLevel(level);
 
 		if (error) {
-			formattedMessage += ` | Error: ${error.message}`;
-			if (error.stack) {
-				formattedMessage += `\nStack: ${error.stack}`;
-			}
+			return ConsoleStyles.errorDetails(error, context);
 		}
 
-		return formattedMessage;
+		return ConsoleStyles.logEntry(levelName, message, emoji, context);
 	}
 
 	private static getEmojiForLevel(level: LogLevel): string {
@@ -95,20 +75,8 @@ export class Logger {
 
 		const formattedMessage = Logger.formatMessage(level, message, context, error);
 
-		switch (level) {
-			case LogLevel.ERROR:
-				console.error(formattedMessage);
-				break;
-			case LogLevel.WARN:
-				console.warn(formattedMessage);
-				break;
-			case LogLevel.INFO:
-				console.info(formattedMessage);
-				break;
-			case LogLevel.DEBUG:
-				console.debug(formattedMessage);
-				break;
-		}
+		// Always use console.log to avoid duplicate level prefixes
+		console.log(formattedMessage);
 	}
 
 	static error(message: string, context?: LogContext, error?: Error): void {
@@ -136,17 +104,7 @@ export class Logger {
 			input: Logger.sanitizeInput(input)
 		};
 
-		// Use styled console output for development
-		if (Logger.isDevelopment) {
-			console.log(ConsoleStyles.apiCallStart(procedure, userId));
-		} else {
-			Logger.info(`API Call Started: ${procedure}`, {
-				procedure,
-				userId,
-				inputKeys: input ? Object.keys(input) : []
-			});
-		}
-
+		console.log(ConsoleStyles.apiCallStart(procedure, userId));
 		return context;
 	}
 
@@ -157,31 +115,15 @@ export class Logger {
 		context.output = success ? Logger.sanitizeOutput(output) : undefined;
 		context.error = error;
 
-		// Use styled console output for development
-		if (Logger.isDevelopment) {
-			console.log(ConsoleStyles.apiCallEnd(context.procedure, success, duration, context.userId));
+		console.log(ConsoleStyles.apiCallEnd(context.procedure, success, duration, context.userId));
 
-			// Log error details if there's an error
-			if (error) {
-				console.log(ConsoleStyles.errorDetails(error, {
-					procedure: context.procedure,
-					userId: context.userId,
-					duration: `${duration}ms`
-				}));
-			}
-		} else {
-			const logLevel = success ? LogLevel.INFO : LogLevel.ERROR;
-			const message = `API Call ${success ? 'Completed' : 'Failed'}: ${context.procedure}`;
-
-			Logger.log(logLevel, message, {
+		// Log error details if there's an error
+		if (error) {
+			console.log(ConsoleStyles.errorDetails(error, {
 				procedure: context.procedure,
 				userId: context.userId,
-				duration: `${duration}ms`,
-				success,
-				errorCode: error?.code,
-				errorMessage: error?.message,
-				outputKeys: success && output ? Object.keys(output) : undefined
-			}, error);
+				duration: `${duration}ms`
+			}));
 		}
 	}
 
@@ -236,12 +178,7 @@ export class Logger {
 	}
 
 	static dbOperation(operation: string, collection: string, context?: LogContext): void {
-		// Use styled console output for development
-		if (Logger.isDevelopment) {
-			console.log(ConsoleStyles.dbOperation(operation, collection, context));
-		} else {
-			Logger.debug(`DB Operation: ${operation}`, { operation, collection, ...context });
-		}
+		console.log(ConsoleStyles.dbOperation(operation, collection, context));
 	}
 
 	static auth(message: string, userId?: string, context?: LogContext): void {
