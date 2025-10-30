@@ -10,7 +10,6 @@
 		}
 	},
 	"scripts": {
-		"dev": "tsx watch src/server.ts",
 		"start": "node dist/index.mjs"
 	},
 	"dependencies": {
@@ -30,7 +29,6 @@
 		"@types/jsonwebtoken": "9.0.6",
 		"@types/node": "22.5.0",
 		"build-logic": "workspace:*",
-		"tsx": "4.17.0",
 		"typescript": "5.8.2"
 	}
 }
