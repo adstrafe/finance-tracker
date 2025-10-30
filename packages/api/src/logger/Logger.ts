@@ -1,5 +1,5 @@
-import { AppError, ErrorCode } from '../errors';
-import { ConsoleStyles, emojis } from '../utils/consoleStyles';
+import { AppError, ErrorCode } from '~/errors';
+import { ConsoleStyles, emojis } from '~/utils/consoleStyles';
 
 export enum LogLevel {
 	ERROR = 0,

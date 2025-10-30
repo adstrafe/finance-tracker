@@ -1,4 +1,4 @@
-import { authOutputModel, loginInputModel, registerInputModel, userOutputModel } from '~/models/credentials';
+import { AuthOutputModel, LoginInputModel, RegisterInputModel, UserOutputModel } from '~/models/Auth';
 import { NewUser, User } from '~/mongo/schemas/User';
 import { createTRPCRouter, publicProcedure } from '~/trpc/trpc';
 import { sign } from '~/utils/jwt';
@@ -13,8 +13,8 @@ const secret = getEnvVar('JWT_SECRET');
 
 export const authRouter = createTRPCRouter({
 	register: publicProcedure
-		.input(registerInputModel)
-		.output(authOutputModel)
+		.input(RegisterInputModel)
+		.output(AuthOutputModel)
 		.use(mongoContextProvider(Collections.users))
 		.mutation(async ({ ctx: { collection }, input }) => {
 			const { email, password } = input;
@@ -57,8 +57,8 @@ export const authRouter = createTRPCRouter({
 		}),
 
 	login: publicProcedure
-		.input(loginInputModel)
-		.output(authOutputModel)
+		.input(LoginInputModel)
+		.output(AuthOutputModel)
 		.use(mongoContextProvider(Collections.users))
 		.mutation(async ({ ctx: { collection }, input }) => {
 			const { email, password } = input;
@@ -95,7 +95,7 @@ export const authRouter = createTRPCRouter({
 		}),
 
 	me: publicProcedure
-		.output(userOutputModel)
+		.output(UserOutputModel)
 		.use(mongoContextProvider(Collections.users))
 		.query(async ({ ctx: { collection, user } }) => {
 			if (!user) {

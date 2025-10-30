@@ -12,3 +12,8 @@ export interface Transaction {
 	readonly updatedAt: Date
 	readonly description?: string;
 }
+
+export interface FacetTransactionResult {
+	readonly metadata: Array<{ totalCount: number }>;
+	readonly data: readonly Transaction[];
+}
