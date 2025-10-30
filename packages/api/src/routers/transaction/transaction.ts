@@ -153,19 +153,26 @@ export const transactionRouter = createTRPCRouter({
 				type
 			}
 		}) => {
-			if (!user) {
-				throw ErrorFactory.authentication('User not found', { procedure: 'listTransaction' });
-			}
+		if (!user) {
+			throw ErrorFactory.authentication('User not found', { procedure: 'listTransaction' });
+		}
 
-			const transactions = await collection.aggregate<FacetTransactionResult>([
-					{
-						$match: {
-							userId: user._id,
-							category,
-							createdAt,
-							type
-						}
-					},
+		Logger.dbOperation('aggregate', 'transactions', {
+			userId: user._id,
+			operation: 'list-transactions',
+			filters: { type, category: category?.length, hasCreatedAt: !!createdAt },
+			pagination: { page, pageSize }
+		});
+
+		const transactions = await collection.aggregate<FacetTransactionResult>([
+				{
+					$match: {
+						userId: new ObjectId(user._id),
+						category,
+						createdAt,
+						type
+					}
+				},
 					{
 						$sort: {
 							createdAt: 1
