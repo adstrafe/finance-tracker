@@ -6,7 +6,8 @@ import { Collections } from '~/mongo/Collections';
 import { ErrorFactory } from '~/errors';
 import { Logger } from '~/logger';
 
-import { FilterModel } from '~/models/Filter';
+import { EntityIdModel } from '~/models/Entity';
+import { TransactionFilterModel } from '~/models/Filter';
 import { FacetTransactionResult, Transaction } from '~/mongo/schemas/Transaction';
 
 export const transactionRouter = createTRPCRouter({
@@ -79,7 +80,7 @@ export const transactionRouter = createTRPCRouter({
 			};
 		}),
 	deleteTransaction: protectedProcedure
-		.input(FilterModel)
+		.input(EntityIdModel)
 		.output(TransactionOutputModel)
 		.use(mongoMiddleware(Collections.transactions))
 		.mutation(async ({ ctx: { collection, user }, input: { _id } }) => {
@@ -110,7 +111,7 @@ export const transactionRouter = createTRPCRouter({
 			};
 		}),
 	getTransaction: protectedProcedure
-		.input(FilterModel)
+		.input(EntityIdModel)
 		.use(mongoMiddleware(Collections.transactions))
 		.query(async ({ ctx: { collection, user }, input: { _id } }) => {
 			if (!user) {
@@ -139,7 +140,7 @@ export const transactionRouter = createTRPCRouter({
 			return result;
 		}),
 	listTransactions: protectedProcedure
-		.input(FilterModel)
+		.input(TransactionFilterModel)
 		.use(mongoMiddleware(Collections.transactions))
 		.query(async ({
 			ctx: { collection, user },
