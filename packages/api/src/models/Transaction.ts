@@ -6,7 +6,7 @@ export const TransactionInputModel = z.object({
 	type: TransactionType,
 	amount: z.number(),
 	category: z.array(z.string()), // users choice of their own category
-	date: z.date(),
+	date: z.coerce.date(), // Automatically converts ISO string to Date
 	description: z.string().optional()
 });
 

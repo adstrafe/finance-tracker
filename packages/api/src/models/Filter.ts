@@ -9,7 +9,7 @@ export const TransactionFilterModel = z.object({
 	pagination: PaginationModel,
 	type: TransactionType.optional(),
 	category: z.array(z.string()).optional(),
-	createdAt: z.date().optional()
+	createdAt: z.coerce.date().optional() // Automatically converts ISO string to Date
 });
 
 export type TransactionFilter = z.infer<typeof TransactionFilterModel>;
