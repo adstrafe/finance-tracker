@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { ObjectIdField } from './Entity';
 
 export const TransactionType = z.enum([ 'income', 'expense' ])
 
@@ -19,7 +20,7 @@ export const TransactionOutputModel = z.object({
 
 export const TransactionUpdateModel = TransactionInputModel
 	.partial()
-	.extend({ _id: z.string() });
+	.extend({ _id: ObjectIdField });
 
 export type TransactionInput = z.infer<typeof TransactionInputModel>;
 export type TransactionOutput = z.infer<typeof TransactionOutputModel>;
