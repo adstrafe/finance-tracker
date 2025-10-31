@@ -11,8 +11,8 @@
 	},
 	"scripts": {
 		"build": "rollup-build",
-		"start": "cross-env NODE_ENV=production node dist/index.js",
-		"start:dev": "cross-env NODE_ENV=development node dist/index.js",
+		"start": "cross-env NODE_ENV=production node dist/index.mjs",
+		"start:dev": "cross-env NODE_ENV=development node dist/index.mjs",
 		"type-check": "tsc --noEmit"
 	},
 	"dependencies": {
@@ -33,7 +33,6 @@
 		"@types/node": "22.5.0",
 		"build-logic": "workspace:*",
 		"cross-env": "7.0.3",
-		"tsx": "4.17.0",
 		"typescript": "5.8.2"
 	}
 }
