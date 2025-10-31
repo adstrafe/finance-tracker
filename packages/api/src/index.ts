@@ -6,6 +6,7 @@ import { connectDb } from './utils/db';
 import { initConfig } from './config/config';
 import { configureJwt } from './middleware/jwtMiddleware';
 import { configureMongo } from './middleware/mongoMiddleware';
+import { Logger } from './logger';
 
 // Load environment variables first
 dotenv.config();
@@ -19,7 +20,16 @@ configureMongo(config.mongo.dbName);
 
 const server = createHTTPServer({
 	router: appRouter,
-	createContext: createContextFactory(config)
+	createContext: createContextFactory(config),
+	onError({ error, path, type }) {
+		// Log errors that happen at HTTP adapter level (before routing)
+		Logger.error(`HTTP Adapter Error [${type}]`, {
+			path,
+			errorCode: error.code,
+			message: error.message,
+			cause: error.cause ? String(error.cause) : undefined
+		});
+	}
 });
 
 // Connect to MongoDB and start server
