@@ -10,7 +10,7 @@ export type RegisterModel = z.infer<typeof RegisterInputModel>;
 export const LoginInputModel = z.object({
 	email: z.email(),
 	password: z.string()
-})
+});
 
 export type LoginModel = z.infer<typeof LoginInputModel>;
 

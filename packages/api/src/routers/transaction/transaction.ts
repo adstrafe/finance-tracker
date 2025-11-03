@@ -99,7 +99,7 @@ export const transactionRouter = createTRPCRouter({
 	getTransaction: protectedProcedure
 		.input(EntityIdModel)
 		.use(mongoMiddleware(Collections.transactions))
-		.query(async ({ ctx: { collection, user }, input: { _id } }) => {
+		.mutation(async ({ ctx: { collection, user }, input: { _id } }) => {
 			Logger.dbOperation('findOne', 'transactions', {
 				_id,
 				userId: user!._id,
@@ -123,7 +123,7 @@ export const transactionRouter = createTRPCRouter({
 	listTransactions: protectedProcedure
 		.input(TransactionFilterModel)
 		.use(mongoMiddleware(Collections.transactions))
-		.query(async ({
+		.mutation(async ({
 			ctx: { collection, user },
 			input: {
 				pagination: {
@@ -138,7 +138,7 @@ export const transactionRouter = createTRPCRouter({
 		Logger.dbOperation('aggregate', 'transactions', {
 			userId: user!._id,
 			operation: 'list-transactions',
-			filters: { type, category: category?.length, hasCreatedAt: !!createdAt },
+			filters: { type, category: category, hasCreatedAt: !!createdAt },
 			pagination: { page, pageSize }
 		});
 
@@ -146,9 +146,9 @@ export const transactionRouter = createTRPCRouter({
 				{
 					$match: {
 						userId: new ObjectId(user!._id),
-						category,
-						createdAt,
-						type
+						...(type !== undefined && { type }),
+						...(category !== undefined && category.length > 0 && { category }),
+						...(createdAt !== undefined && { createdAt })
 					}
 				},
 					{
@@ -162,17 +162,21 @@ export const transactionRouter = createTRPCRouter({
 							data: [{ $skip: (page - 1) * pageSize }, { $limit: pageSize }]
 					}
 				}
-			]).toArray();
+		]).toArray();
 
-			const [{ metadata, data }] = transactions;
-			const totalCount = metadata[0].totalCount ?? 0;
+		// Handle case where no documents match - $facet returns array with one object
+		const result = transactions[0] || { metadata: [], data: [] };
+		const { metadata = [], data = [] } = result;
 
-			return {
-				transactions: data,
-				totalCount,
-				page,
-				pageSize,
-				totalPages: Math.ceil(totalCount / pageSize)
-			}
+		// $count returns empty array when no documents match
+		const totalCount = metadata[0]?.totalCount ?? 0;
+
+		return {
+			transactions: data,
+			totalCount,
+			page,
+			pageSize,
+			totalPages: Math.ceil(totalCount / pageSize)
+		}
 		})
 })
