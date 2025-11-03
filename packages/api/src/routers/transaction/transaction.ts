@@ -3,7 +3,7 @@ import { TransactionInputModel, TransactionOutputModel, TransactionUpdateModel }
 import { ObjectId } from 'mongodb';
 import { mongoMiddleware } from '~/middleware/mongoMiddleware';
 import { Collections } from '~/mongo/Collections';
-import { ErrorFactory } from '~/errors';
+import { TRPCError } from '@trpc/server';
 import { Logger } from '~/logger';
 
 import { EntityIdModel } from '~/models/Entity';
@@ -16,12 +16,8 @@ export const transactionRouter = createTRPCRouter({
 		.output(TransactionOutputModel)
 		.use(mongoMiddleware(Collections.transactions))
 		.mutation(async ({ ctx: { collection, user }, input: { date, ...rest } }) => {
-			if (!user) {
-				throw ErrorFactory.authentication('User not found', { procedure: 'addTransaction' });
-			}
-
 			Logger.dbOperation('insertOne', 'transactions', {
-				userId: user._id,
+				userId: user!._id,
 				transactionType: rest.type,
 				amount: rest.amount
 			});
@@ -30,7 +26,7 @@ export const transactionRouter = createTRPCRouter({
 				...rest,
 				createdAt: date,
 				updatedAt: date,
-				userId: new ObjectId(user._id)
+				userId: new ObjectId(user!._id)
 			} as Transaction);
 
 			return {
@@ -43,12 +39,8 @@ export const transactionRouter = createTRPCRouter({
 		.output(TransactionOutputModel)
 		.use(mongoMiddleware(Collections.transactions))
 		.mutation(async ({ ctx: { collection, user }, input: { _id, ...updates } }) => {
-			if (!user) {
-				throw ErrorFactory.authentication('User not found', { procedure: 'updateTransaction' });
-			}
-
 			Logger.dbOperation('updateOne', 'transactions', {
-				userId: user._id,
+				userId: user!._id,
 				transactionId: _id,
 				updates: Object.keys(updates)
 			});
@@ -56,7 +48,7 @@ export const transactionRouter = createTRPCRouter({
 			const transaction = await collection.updateOne(
 				{
 					_id: new ObjectId(_id),
-					userId: new ObjectId(user._id)
+					userId: new ObjectId(user!._id)
 				},
 				{
 					$set: {
@@ -67,10 +59,9 @@ export const transactionRouter = createTRPCRouter({
 			);
 
 			if (transaction.matchedCount === 0) {
-				throw ErrorFactory.notFound('Transaction', {
-					procedure: 'updateTransaction',
-					userId: user._id,
-					transactionId: _id
+				throw new TRPCError({
+					code: 'NOT_FOUND',
+					message: 'Transaction not found'
 				});
 			}
 
@@ -84,25 +75,20 @@ export const transactionRouter = createTRPCRouter({
 		.output(TransactionOutputModel)
 		.use(mongoMiddleware(Collections.transactions))
 		.mutation(async ({ ctx: { collection, user }, input: { _id } }) => {
-			if (!user) {
-				throw ErrorFactory.authentication('User not found', { procedure: 'deleteTransaction' });
-			}
-
 			Logger.dbOperation('deleteOne', 'transactions', {
-				userId: user._id,
+				userId: user!._id,
 				transactionId: _id
 			});
 
 			const result = await collection.deleteOne({
 				_id: new ObjectId(_id),
-				userId: new ObjectId(user._id)
+				userId: new ObjectId(user!._id)
 			});
 
 			if (result.deletedCount === 0) {
-				throw ErrorFactory.notFound('Transaction', {
-					procedure: 'deleteTransaction',
-					userId: user._id,
-					transactionId: _id
+				throw new TRPCError({
+					code: 'NOT_FOUND',
+					message: 'Transaction not found'
 				});
 			}
 
@@ -114,27 +100,22 @@ export const transactionRouter = createTRPCRouter({
 		.input(EntityIdModel)
 		.use(mongoMiddleware(Collections.transactions))
 		.query(async ({ ctx: { collection, user }, input: { _id } }) => {
-			if (!user) {
-				throw ErrorFactory.authentication('User not found', { procedure: 'getTransaction' });
-			}
-
 			Logger.dbOperation('findOne', 'transactions', {
 				_id,
-				userId: user._id,
+				userId: user!._id,
 				operation: 'get-transaction'
 			});
 
 			const result = await collection.findOne({
 				_id: new ObjectId(_id),
-				userId: new ObjectId(user._id)
+				userId: new ObjectId(user!._id)
 			});
 
 			if (!result) {
-				throw ErrorFactory.notFound('Transaction', {
-					procedure: 'getTransaction',
-					resourceId: _id,
-					userId: user._id,
-				})
+				throw new TRPCError({
+					code: 'NOT_FOUND',
+					message: 'Transaction not found'
+				});
 			}
 
 			return result;
@@ -154,12 +135,8 @@ export const transactionRouter = createTRPCRouter({
 				type
 			}
 		}) => {
-		if (!user) {
-			throw ErrorFactory.authentication('User not found', { procedure: 'listTransaction' });
-		}
-
 		Logger.dbOperation('aggregate', 'transactions', {
-			userId: user._id,
+			userId: user!._id,
 			operation: 'list-transactions',
 			filters: { type, category: category?.length, hasCreatedAt: !!createdAt },
 			pagination: { page, pageSize }
@@ -168,7 +145,7 @@ export const transactionRouter = createTRPCRouter({
 		const transactions = await collection.aggregate<FacetTransactionResult>([
 				{
 					$match: {
-						userId: new ObjectId(user._id),
+						userId: new ObjectId(user!._id),
 						category,
 						createdAt,
 						type

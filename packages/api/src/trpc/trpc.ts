@@ -1,33 +1,37 @@
 import { initTRPC, TRPCError } from '@trpc/server';
 import { ZodError, treeifyError } from 'zod';
-import type { Context } from './context';
 import { Logger } from '~/logger';
-import { AppError, ErrorCode } from '~/errors';
+import { getEnvVar } from '~/utils/getEnvVar';
+
+// Context types
+export interface UserContext {
+	readonly _id: string;
+	readonly email: string;
+}
+
+export interface Context {
+	readonly user?: UserContext;
+}
+
+const isDev = getEnvVar('NODE_ENV') === 'development' ? true : false;
 
 export const t = initTRPC.context<Context>().create({
 	errorFormatter(opts) {
-		const { shape, error, path } = opts;
+		const { shape, error } = opts;
 
-		// Log validation errors (check for ZodError regardless of error code)
-		if (error.cause instanceof ZodError) {
-			const validationErrors = error.cause.issues.map((err) => ({
-				path: err.path.join('.'),
-				message: err.message,
-				code: err.code
-			}));
-
-			Logger.warn('Validation error', {
-				procedure: path,
-				errorCode: error.code,
-				validationErrors
-			});
-		}
+		// Check if error is an AppError (custom error with code property)
+		const appError = error.cause && typeof error.cause === 'object' && 'code' in error.cause
+			? error.cause as { code?: unknown }
+			: null;
 
 		return {
 			...shape,
+			message: error.message,
 			data: {
 				...shape.data,
-				stack: process.env.NODE_ENV === 'development' ? error.stack : undefined,
+				code: appError?.code || error.code,
+				httpStatus: shape.data.httpStatus,
+				stack: isDev ? error.stack : undefined,
 				errors:
 					error.cause instanceof ZodError
 						? treeifyError(error.cause)
@@ -37,71 +41,142 @@ export const t = initTRPC.context<Context>().create({
 	},
 });
 
-// Logging middleware - defined here to avoid circular dependency
-const loggingMiddleware = t.middleware(async ({ next, path, ctx, input }) => {
-	const userId = ctx.user?._id;
-	const apiContext = Logger.apiCallStart(path, userId, input);
+/**
+ * Middleware that logs all tRPC procedure calls with:
+ * - Path and type (query/mutation)
+ * - Success/error status
+ * - Duration
+ * - Input payload (in dev mode)
+ * - Error details (if any)
+ */
+const loggingMiddleware = t.middleware(async ({ path, type, ctx, next, input }) => {
+	const startTime = Date.now();
+
+	// Log request details in dev mode
+	if (isDev && input && Object.keys(input).length > 0) {
+		Logger.info(`→ [${type.toUpperCase()}] ${path}`, {
+			input: input
+		});
+	}
 
 	try {
 		const result = await next();
 
-		Logger.apiCallEnd(apiContext, true, result);
-		return result;
-	} catch (error) {
-		// Convert TRPCError to AppError for consistent logging
-		let appError: AppError;
+		const duration = Date.now() - startTime;
 
-		if (error instanceof TRPCError) {
-			// Check if this is a validation error (ZodError in cause)
-			if (error.cause instanceof ZodError) {
-				const validationErrors = error.cause.issues.map((err) => ({
-					path: err.path.join('.'),
-					message: err.message,
-					code: err.code
-				}));
+		// Check if result indicates an error
+		const resultObj = result && typeof result === 'object' ? result as unknown as Record<string, unknown> : null;
+		const hasError = resultObj && ('error' in resultObj || (resultObj.ok === false));
+		const status: 'success' | 'error' = hasError ? 'error' : 'success';
 
-				Logger.warn('Validation error in API call', {
-					procedure: path,
-					userId,
-					errorCode: error.code,
-					validationErrors,
-					inputKeys: input ? Object.keys(input) : []
-				});
+		// Log response
+		const logOptions: Record<string, unknown> = {};
+		if (isDev && type === 'mutation' && result) {
+			if (hasError && resultObj) {
+				// Extract and format error information
+				const error = resultObj.error;
+				if (error && typeof error === 'object') {
+					const errorObj = error as Record<string, unknown>;
+					const formattedError: Record<string, unknown> = {
+						message: errorObj.message || 'Unknown error',
+					};
 
-				appError = new AppError(
-					'Validation error',
-					ErrorCode.VALIDATION_ERROR,
-					{
-						procedure: path,
-						userId,
-						trpcCode: error.code,
-						validationErrors
-					},
-					true
-				);
+					// Try to parse and format validation errors
+					if (typeof errorObj.message === 'string') {
+						try {
+							const parsed = JSON.parse(errorObj.message);
+							if (Array.isArray(parsed)) {
+								// Format Zod validation errors nicely
+								formattedError.validationErrors = parsed.map((err: { path?: unknown[]; message?: string }) => ({
+									path: err.path?.join('.') || 'unknown',
+									message: err.message || 'Validation failed'
+								}));
+								formattedError.message = 'Validation failed';
+							}
+						} catch {
+							// Not JSON, use as is
+						}
+					}
+
+					if ('name' in errorObj) formattedError.name = errorObj.name;
+					if ('code' in errorObj) formattedError.code = errorObj.code;
+
+					logOptions.error = formattedError;
+				} else {
+					logOptions.error = error;
+				}
+			} else if (result && typeof result === 'object') {
+				// Extract only the data field from successful tRPC response, exclude ctx and other internal fields
+				if ('data' in result) {
+					logOptions.output = (result as { data?: unknown }).data;
+				} else {
+					// Exclude internal tRPC fields like ctx, ok, marker, etc.
+					const { ctx, ok, marker, ...cleanResult } = resultObj!;
+					logOptions.output = cleanResult;
+				}
 			} else {
-				// Other TRPC errors
-				Logger.warn(`TRPC error in API call: ${error.message}`, {
-					procedure: path,
-					userId,
-					errorCode: error.code,
-					message: error.message
-				});
-
-				appError = new AppError(
-					error.message,
-					error.code as any,
-					{ procedure: path, userId, trpcCode: error.code },
-					true
-				);
+				logOptions.output = result;
 			}
-		} else {
-			appError = Logger.logError(error, { procedure: path, userId });
 		}
 
-		Logger.apiCallEnd(apiContext, false, undefined, appError);
+		Logger.apiCall(path, type as 'query' | 'mutation', status, duration, logOptions);
 
-		// Re-throw the original error to maintain tRPC error handling
+		return result;
+	} catch (error) {
+		const duration = Date.now() - startTime;
+		const status: 'success' | 'error' = 'error';
+
+		// Extract and format error information
+		const errorInfo: Record<string, unknown> = {};
+
+		if (error instanceof Error) {
+			let message = error.message;
+
+			// Try to parse and format validation errors (Zod errors often have JSON strings as messages)
+			if (typeof message === 'string') {
+				try {
+					const parsed = JSON.parse(message);
+					if (Array.isArray(parsed)) {
+						// Format Zod validation errors nicely
+						errorInfo.validationErrors = parsed.map((err: { path?: unknown[]; message?: string; code?: string }) => ({
+							path: err.path?.join('.') || 'unknown',
+							message: err.message || 'Validation failed',
+							code: err.code || 'invalid_type'
+						}));
+						errorInfo.message = 'Validation failed';
+					} else {
+						errorInfo.message = message;
+					}
+				} catch {
+					// Not JSON, use as is
+					errorInfo.message = message;
+				}
+			} else {
+				errorInfo.message = message;
+			}
+
+			errorInfo.name = error.name;
+
+			// Include additional error data if available
+			if ('code' in error) {
+				errorInfo.code = (error as { code?: unknown }).code;
+			}
+
+			if ('cause' in error && error.cause) {
+				errorInfo.cause = error.cause instanceof Error ? error.cause.message : error.cause;
+			}
+		} else {
+			errorInfo.message = String(error);
+		}
+
+		// Log error response
+		Logger.apiCall(path, type as 'query' | 'mutation', status, duration, {
+			error: errorInfo,
+			// Include input in error logs for debugging
+			...(isDev && input ? { input: input } : {})
+		});
+
+		// Re-throw the error so tRPC can handle it
 		throw error;
 	}
 });
@@ -115,22 +190,11 @@ export const protectedProcedure = t.procedure
 	.use(loggingMiddleware)
 	.use(({ ctx, next, path }) => {
 		if (!ctx.user) {
-			Logger.warn('Unauthorized access attempt to protected endpoint', {
-				procedure: path,
-				authenticated: false,
-				reason: 'No user in context'
-			});
 			throw new TRPCError({
 				code: 'UNAUTHORIZED',
 				message: 'You must be logged in to access this resource',
 			});
 		}
-
-		Logger.debug('Protected endpoint access granted', {
-			procedure: path,
-			userId: ctx.user._id,
-			authenticated: true
-		});
 
 		return next({
 			ctx: {

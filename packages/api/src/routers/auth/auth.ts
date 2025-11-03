@@ -5,7 +5,7 @@ import { jwtMiddleware } from '~/middleware/jwtMiddleware';
 import { compare, hash } from 'bcrypt';
 import { mongoMiddleware } from '~/middleware/mongoMiddleware';
 import { Collections } from '~/mongo/Collections';
-import { ErrorFactory, AppError, ErrorCode } from '~/errors';
+import { TRPCError } from '@trpc/server';
 import { Logger } from '~/logger';
 
 export const authRouter = createTRPCRouter({
@@ -24,9 +24,9 @@ export const authRouter = createTRPCRouter({
 
 			const existingUser = await collection.findOne({ email });
 			if (existingUser) {
-				throw new AppError('User with this email already exists', ErrorCode.DUPLICATE_ENTRY, {
-					procedure: 'register',
-					email
+				throw new TRPCError({
+					code: 'CONFLICT',
+					message: 'User with this email already exists'
 				});
 			}
 
@@ -69,17 +69,17 @@ export const authRouter = createTRPCRouter({
 
 			const existingUser = await collection.findOne({ email });
 			if (!existingUser) {
-				throw ErrorFactory.authentication('Invalid email or password', {
-					procedure: 'login',
-					email
+				throw new TRPCError({
+					code: 'UNAUTHORIZED',
+					message: 'Invalid email or password'
 				});
 			}
 
 			const isValidPassword = await compare(password, existingUser.passwordHash);
 			if (!isValidPassword) {
-				throw ErrorFactory.authentication('Invalid email or password', {
-					procedure: 'login',
-					email
+				throw new TRPCError({
+					code: 'UNAUTHORIZED',
+					message: 'Invalid email or password'
 				});
 			}
 
