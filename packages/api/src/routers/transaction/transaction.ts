@@ -1,54 +1,46 @@
 import { createTRPCRouter, protectedProcedure } from '~/trpc/trpc';
-import { transactionDeleteModel, transactionInputModel, transactionOutputModel, transactionUpdateModel } from '~/models/Transaction';
+import { TransactionInputModel, TransactionOutputModel, TransactionUpdateModel } from '~/models/Transaction';
 import { ObjectId } from 'mongodb';
-import { mongoContextProvider } from '~/mongo/providers/mongoContextProvider';
+import { mongoMiddleware } from '~/middleware/mongoMiddleware';
 import { Collections } from '~/mongo/Collections';
-import { ErrorFactory } from '~/errors';
+import { TRPCError } from '@trpc/server';
 import { Logger } from '~/logger';
 
-import type { Transaction } from '~/mongo/schemas/Transaction';
+import { EntityIdModel } from '~/models/Entity';
+import { TransactionFilterModel } from '~/models/Filter';
+import { FacetTransactionResult, Transaction } from '~/mongo/schemas/Transaction';
 
 export const transactionRouter = createTRPCRouter({
 	addTransaction: protectedProcedure
-		.input(transactionInputModel)
-		.output(transactionOutputModel)
-		.use(mongoContextProvider(Collections.transactions))
+		.input(TransactionInputModel)
+		.output(TransactionOutputModel)
+		.use(mongoMiddleware(Collections.transactions))
 		.mutation(async ({ ctx: { collection, user }, input: { date, ...rest } }) => {
-			if (!user) {
-				throw ErrorFactory.authentication('User not found', { procedure: 'addTransaction' });
-			}
-
 			Logger.dbOperation('insertOne', 'transactions', {
-				userId: user._id,
+				userId: user!._id,
 				transactionType: rest.type,
 				amount: rest.amount
 			});
 
-			const result = await collection.insertOne({
+			const transaction = await collection.insertOne({
 				...rest,
 				createdAt: date,
 				updatedAt: date,
-				userId: new ObjectId(user._id)
+				userId: new ObjectId(user!._id)
 			} as Transaction);
 
 			return {
-				acknowledged: result.acknowledged,
-				insertedId: result.insertedId.toString()
+				acknowledged: transaction.acknowledged,
+				insertedId: transaction.insertedId.toString()
 			};
 		}),
 	updateTransaction: protectedProcedure
-		.input(transactionUpdateModel)
-		.output(transactionOutputModel)
-		.use(mongoContextProvider(Collections.transactions))
-		.mutation(async ({ ctx: { collection, user }, input }) => {
-			if (!user) {
-				throw ErrorFactory.authentication('User not found', { procedure: 'updateTransaction' });
-			}
-
-			const { _id, ...updates } = input;
-
+		.input(TransactionUpdateModel)
+		.output(TransactionOutputModel)
+		.use(mongoMiddleware(Collections.transactions))
+		.mutation(async ({ ctx: { collection, user }, input: { _id, ...updates } }) => {
 			Logger.dbOperation('updateOne', 'transactions', {
-				userId: user._id,
+				userId: user!._id,
 				transactionId: _id,
 				updates: Object.keys(updates)
 			});
@@ -56,7 +48,7 @@ export const transactionRouter = createTRPCRouter({
 			const transaction = await collection.updateOne(
 				{
 					_id: new ObjectId(_id),
-					userId: new ObjectId(user._id)
+					userId: new ObjectId(user!._id)
 				},
 				{
 					$set: {
@@ -67,10 +59,9 @@ export const transactionRouter = createTRPCRouter({
 			);
 
 			if (transaction.matchedCount === 0) {
-				throw ErrorFactory.notFound('Transaction', {
-					procedure: 'updateTransaction',
-					userId: user._id,
-					transactionId: _id
+				throw new TRPCError({
+					code: 'NOT_FOUND',
+					message: 'Transaction not found'
 				});
 			}
 
@@ -80,35 +71,112 @@ export const transactionRouter = createTRPCRouter({
 			};
 		}),
 	deleteTransaction: protectedProcedure
-		.input(transactionDeleteModel)
-		.output(transactionOutputModel)
-		.use(mongoContextProvider(Collections.transactions))
-		.mutation(async ({ ctx: { collection, user }, input }) => {
-			if (!user) {
-				throw ErrorFactory.authentication('User not found', { procedure: 'deleteTransaction' });
-			}
-
+		.input(EntityIdModel)
+		.output(TransactionOutputModel)
+		.use(mongoMiddleware(Collections.transactions))
+		.mutation(async ({ ctx: { collection, user }, input: { _id } }) => {
 			Logger.dbOperation('deleteOne', 'transactions', {
-				userId: user._id,
-				transactionId: input._id
+				userId: user!._id,
+				transactionId: _id
 			});
 
 			const result = await collection.deleteOne({
-				_id: new ObjectId(input._id),
-				userId: new ObjectId(user._id)
+				_id: new ObjectId(_id),
+				userId: new ObjectId(user!._id)
 			});
 
 			if (result.deletedCount === 0) {
-				throw ErrorFactory.notFound('Transaction', {
-					procedure: 'deleteTransaction',
-					userId: user._id,
-					transactionId: input._id
+				throw new TRPCError({
+					code: 'NOT_FOUND',
+					message: 'Transaction not found'
 				});
 			}
 
 			return {
-				acknowledged: result.acknowledged,
-				insertedId: input._id
+				acknowledged: result.acknowledged
 			};
+		}),
+	getTransaction: protectedProcedure
+		.input(EntityIdModel)
+		.use(mongoMiddleware(Collections.transactions))
+		.mutation(async ({ ctx: { collection, user }, input: { _id } }) => {
+			Logger.dbOperation('findOne', 'transactions', {
+				_id,
+				userId: user!._id,
+				operation: 'get-transaction'
+			});
+
+			const result = await collection.findOne({
+				_id: new ObjectId(_id),
+				userId: new ObjectId(user!._id)
+			});
+
+			if (!result) {
+				throw new TRPCError({
+					code: 'NOT_FOUND',
+					message: 'Transaction not found'
+				});
+			}
+
+			return result;
+		}),
+	listTransactions: protectedProcedure
+		.input(TransactionFilterModel)
+		.use(mongoMiddleware(Collections.transactions))
+		.mutation(async ({
+			ctx: { collection, user },
+			input: {
+				pagination: {
+					page,
+					pageSize
+				},
+				category,
+				createdAt,
+				type
+			}
+		}) => {
+		Logger.dbOperation('aggregate', 'transactions', {
+			userId: user!._id,
+			operation: 'list-transactions',
+			filters: { type, category: category, hasCreatedAt: !!createdAt },
+			pagination: { page, pageSize }
+		});
+
+		const transactions = await collection.aggregate<FacetTransactionResult>([
+				{
+					$match: {
+						userId: new ObjectId(user!._id),
+						...(type !== undefined && { type }),
+						...(category !== undefined && category.length > 0 && { category }),
+						...(createdAt !== undefined && { createdAt })
+					}
+				},
+					{
+						$sort: {
+							createdAt: 1
+						},
+					},
+					{
+						$facet: {
+							metadata: [{ $count: 'totalCount' }],
+							data: [{ $skip: (page - 1) * pageSize }, { $limit: pageSize }]
+					}
+				}
+		]).toArray();
+
+		// Handle case where no documents match - $facet returns array with one object
+		const result = transactions[0] || { metadata: [], data: [] };
+		const { metadata = [], data = [] } = result;
+
+		// $count returns empty array when no documents match
+		const totalCount = metadata[0]?.totalCount ?? 0;
+
+		return {
+			transactions: data,
+			totalCount,
+			page,
+			pageSize,
+			totalPages: Math.ceil(totalCount / pageSize)
+		}
 		})
 })

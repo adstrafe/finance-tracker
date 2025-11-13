@@ -10,9 +10,10 @@
 		}
 	},
 	"scripts": {
-		"dev": "tsx watch src/server.ts",
-		"build": "rollup -c",
-		"start": "node dist/index.mjs"
+		"build": "rollup-build",
+		"start": "cross-env NODE_ENV=production node dist/index.mjs",
+		"start:dev": "cross-env NODE_ENV=development node dist/index.mjs",
+		"type-check": "tsc --noEmit"
 	},
 	"dependencies": {
 		"@trpc/server": "11.5.1",
@@ -31,7 +32,7 @@
 		"@types/jsonwebtoken": "9.0.6",
 		"@types/node": "22.5.0",
 		"build-logic": "workspace:*",
-		"tsx": "4.17.0",
+		"cross-env": "7.0.3",
 		"typescript": "5.8.2"
 	}
 }
