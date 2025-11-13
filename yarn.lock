@@ -2216,6 +2216,7 @@ __metadata:
   resolution: "frontend@workspace:packages/frontend"
   dependencies:
     build-logic: "workspace:*"
+    preact: "npm:10.27.2"
     typescript: "npm:5.8.2"
   languageName: unknown
   linkType: soft
@@ -3761,6 +3762,13 @@ __metadata:
   version: 1.1.0
   resolution: "possible-typed-array-names@npm:1.1.0"
   checksum: 10/2f44137b8d3dd35f4a7ba7469eec1cd9cfbb46ec164b93a5bc1f4c3d68599c9910ee3b91da1d28b4560e9cc8414c3cd56fedc07259c67e52cc774476270d3302
+  languageName: node
+  linkType: hard
+
+"preact@npm:10.27.2":
+  version: 10.27.2
+  resolution: "preact@npm:10.27.2"
+  checksum: 10/e568fb968579e73921119232fcdfa6a5b6a57632742b905ec5127b8ef77abee3a8040d8342022af7845e3b43e97ca06faafbf734aa234dd95c0d62474cd0d03f
   languageName: node
   linkType: hard
 
