@@ -6,12 +6,18 @@ export const Plugin = {
 		async () => (await import("rollup-plugin-copy")).default,
 	),
 
+	CommonJs: declarePlugin(
+		"commonJs",
+		async () => (await import("@rollup/plugin-commonjs")).default,
+	),
+
 	Css: declarePlugin(
 		"css",
-		async () => (await import("rollup-plugin-import-css")).default,
+		async () => (await import("rollup-plugin-postcss")).default,
 	)
 		.configure((_, context) => ({
-			minify: context.targetEnv === "prod",
+			minimize: context.targetEnv === "prod",
+			extract: true,
 		})),
 
 	Definitions: declarePlugin(
@@ -24,7 +30,7 @@ export const Plugin = {
 		async () => (await import("rollup-plugin-delete")).default,
 	)
 		.configure(() => ({
-			targets: "./build",
+			targets: "./dist/**/*",
 			runOnce: true,
 		})),
 
@@ -32,6 +38,21 @@ export const Plugin = {
 		"externals",
 		async () => (await import("rollup-plugin-node-externals")).default,
 	),
+
+	ImportFile: declarePlugin(
+		"importFile",
+		async () => (await import("rollup-plugin-import-file")).default,
+	),
+
+	LiveReload: declarePlugin(
+		"liveReload",
+		async () => (await import("rollup-plugin-livereload")).default,
+	)
+		.enable((_, context) => context.isWatching)
+		.configure(() => ({
+			delay: 300,
+			verbose: false,
+		})),
 
 	NodeResolve: declarePlugin(
 		"nodeResolve",
@@ -45,6 +66,19 @@ export const Plugin = {
 		.configure((_, context) => ({
 			__DEV__: JSON.stringify(context.targetEnv === "dev"),
 			preventAssignment: true,
+		})),
+
+	Serve: declarePlugin(
+		"serve",
+		async () => (await import("rollup-plugin-serve")).default,
+	)
+		.enable((_, context) => context.isWatching)
+		.configure(() => ({
+			contentBase: "./dist",
+			host: "localhost",
+			port: 8080,
+			open: true,
+			verbose: false,
 		})),
 
 	Terser: declarePlugin(
