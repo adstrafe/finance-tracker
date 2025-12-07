@@ -1,0 +1,73 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+
+:root {
+	--color-step: 10;
+	/* Primary accent - a nice purple-blue */
+	--color-accent: hsl(250, 85%, 65%);
+	--color-accent-hover: hsl(from var(--color-accent) H S calc(L - 10));
+	/* Semantic colors */
+	--color-success: hsl(150, 70%, 45%);
+	--color-danger: hsl(0, 70%, 55%);
+	--color-warning: hsl(40, 85%, 55%);
+	/* Base colors - light mode */
+	--color-base: black;
+	--color-base-1: hsl(from var(--color-base) H S calc(L - 1 * var(--color-step)));
+	--color-base-2: hsl(from var(--color-base) H S calc(L - 2 * var(--color-step)));
+	--color-base-3: hsl(from var(--color-base) H S calc(L - 4 * var(--color-step)));
+	/* Text colors - light mode */
+	--color-text: hsl(220, 20%, 15%);
+	--color-text-1: hsl(from var(--color-text) H S calc(L + 1 * var(--color-step)));
+	--color-text-2: hsl(from var(--color-text) H S calc(L + 2 * var(--color-step)));
+	--color-text-3: hsl(from var(--color-text) H S calc(L + 4 * var(--color-step)));
+	/* Shadows */
+	--color-shadow: hsl(220, 10%, 40%);
+	--color-shadow-1: rgb(from var(--color-shadow) R G B / 15%);
+	/* Typography */
+	--text-s: 0.875rem;
+	--text-m: 1rem;
+	--text-l: 1.5rem;
+	/* Spacing */
+	--gap-s: 0.5rem;
+	--gap-m: 1rem;
+	--gap-l: 2rem;
+	font-family: "Inter", system-ui, -apple-system, sans-serif;
+	font-weight: 400;
+	font-style: normal;
+	background-color: var(--color-base);
+	color: var(--color-text);
+}
+
+@media (prefers-color-scheme: dark) {
+	:root {
+		--color-step: -8;
+		/* Adjusted colors for dark mode */
+		--color-accent: hsl(250, 85%, 70%);
+		--color-success: hsl(150, 60%, 50%);
+		--color-danger: hsl(0, 65%, 60%);
+		--color-warning: hsl(40, 80%, 60%);
+		--color-base: hsl(220, 15%, 12%);
+		--color-text: hsl(0, 0%, 93%);
+		--color-shadow: hsl(220, 20%, 5%);
+	}
+}
+
+* {
+	padding: 0;
+	margin: 0;
+	background: none;
+	border: none;
+	outline: none;
+	font: inherit;
+	text-align: inherit;
+	color: inherit;
+}
+
+.text-ellipsis {
+	white-space: nowrap;
+	overflow: hidden;
+	text-overflow: ellipsis;
+}
+
+.rounded {
+	border-radius: 0.5rem;
+}

@@ -3,6 +3,8 @@
 		"baseUrl": "./src",
 		"forceConsistentCasingInFileNames": true,
 		"isolatedModules": true,
+		"jsx": "react-jsx",
+		"jsxImportSource": "preact",
 		"lib": [
 			"ESNext"
 		],
